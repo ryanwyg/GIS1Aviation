@@ -1,8 +1,8 @@
-A Guide to Report 2
-===================
+A Guide to the Project
+======================
 
 *The following document serves as an aid to the accompanying code and
-report on the cloud classification problem. *
+report on the cloud classification problem.*
 
 Data Collection and Exploration
 -------------------------------
