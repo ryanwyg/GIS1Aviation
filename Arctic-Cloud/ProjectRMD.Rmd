@@ -1,0 +1,791 @@
+---
+title: "Untitled"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##1. 
+```{r}
+library(plyr)
+image1 <- read.table("~/Dropbox/project2/image_data/image1.txt", quote="\"", comment.char="")
+image2 <- read.table("~/Dropbox/project2/image_data/image2.txt", quote="\"", comment.char="")
+image3 <- read.table("~/Dropbox/project2/image_data/image3.txt", quote="\"", comment.char="")
+
+count(image1, "V3")
+count(image2, "V3")
+count(image3, "V3")
+```
+```{r}
+images <- rbind(image1, rbind(image2, image2))
+image <- images[!images$V3==0,]
+count(images, "V3")
+z <- cor(images)
+require(lattice)
+levelplot(z)
+
+ggplot(image[sample(1:nrow(image), 10000),],aes(x=V4,y=V3))+geom_jitter(height = 0.35, size = 0.00001)+labs(title="Distribution of NDAI Based on Expert Labeling", x="NDAI", y="Expert Labeling")+theme(aspect.ratio=0.5) 
+ggplot(image[sample(1:nrow(image), 10000),],aes(x=V5,y=V3))+geom_jitter(height = 0.35, size = 0.00001)+labs(title="Distribution of SD Based on Expert Labeling", x="SD", y="Expert Labeling") +theme(aspect.ratio=0.5) 
+ggplot(image[sample(1:nrow(image), 10000),],aes(x=V6,y=V3))+geom_jitter(height = 0.35, size = 0.00001)+labs(title="Distribution of CORR Based on Expert Labeling", x="CORR", y="Expert Labeling") +theme(aspect.ratio=0.5) 
+```
+```{r}
+library("ggplot2")
+library("dplyr")
+names <- c("y", "x", "expert_label", "NDAI", "SD", "CORR", "DF", "CF", "BF", "AF", "AN")
+image1 <- read.csv("~/Dropbox/project2/image_data/image1.txt", sep = "", header = FALSE)
+colnames(image1) <- names
+image2 <- read.csv("~/Dropbox/project2/image_data/image2.txt", sep = "", header = FALSE)
+colnames(image2) <- names
+image3 <- read.csv("~/Dropbox/project2/image_data/image3.txt", sep = "", header = FALSE)
+colnames(image3) <- names
+
+class1 <- filter(image1, expert_label == 1)
+class_neg1 <- filter(image1, expert_label == -1)
+class_0 <- filter(image1, expert_label == 0)
+
+
+ggplot() + geom_point(data = class1, aes(x = x, y = -y), col = "aquamarine2", size = 0.000001) + geom_point(data = class_neg1, aes(x = x, y = -y), col = "brown", size = 0.000001) + geom_point(data = class_0, aes(x = x, y = -y), col = "black", size = 0.000001)+labs(title="image 1", x="x", y="y")+theme(aspect.ratio=1) #size 0.01
+
+ggplot() + geom_point(data = filter(image2_test, expert_label == -1), aes(x = x, y = -y), colour = "brown", size = 0.000001) + geom_point(data = filter(image2, expert_label == 1), aes(x = x, y = -y), colour = "aquamarine2", size = 0.000001) +  geom_point(data = filter(image2, expert_label == 0), aes(x = x, y = -y), colour = "black", size = 0.000001)+labs(title="image 2", x="x", y="y")+theme(aspect.ratio=1)
+
+ggplot() + geom_point(data = filter(image3, expert_label == 1), aes(x = x, y = -y), col = "aquamarine2", size = 0.000001) + geom_point(data = filter(image3, expert_label == -1), aes(x = x, y = -y), col = "brown", size = 0.000001) + geom_point(data = filter(image3, expert_label == 0), aes(x = x, y = -y), col = "black", size = 0.000001)+labs(title="image 3", x="x", y="y")+theme(aspect.ratio=1)
+
+#ggsave(width, height = 3)
+```
+
+
+Expert labelling, - rough areas are likeley to be cloud, smooth means ice. No iid assumption not valid. LIght reflection - based on surrounding area.
+
+##2. 
+```{r}
+library(caret)
+entire <- rbind(image1, image2, image3)
+
+
+#image1
+image1 <- image1 %>% mutate(x_cat = cut(image1$x, 10, include.lowest = T, labels = F), y_cat = cut(image1$y, 10, include.lowest = T, labels = F))
+image2 <- image2 %>% mutate(x_cat = cut(image2$x, 10, include.lowest = T, labels = F), y_cat = cut(image2$y, 10, include.lowest = T, labels = F))
+image3 <- image3 %>% mutate(x_cat = cut(image3$x, 10, include.lowest = T, labels = F), y_cat = cut(image3$y, 10, include.lowest = T, labels = F))
+
+split_image <- function(image){
+  train <- data.frame()
+  test <- data.frame()
+  val <- data.frame()
+  
+  for (i in 1:10) {
+    for (j in 1:10){
+      #index <- createFolds(which(image$x_cat ==i & image$y_cat ==j), k = 3)
+      rows <- which(image$x_cat ==i & image$y_cat ==j)
+      index_train <- sample(rows, floor(length(rows)*0.7), replace = F)
+      rows <- rows[!rows %in% index_train]
+      index_val <- sample(rows, floor(length(rows)*0.5), replace = F)
+      index_test <- rows[!rows %in% index_val]
+      
+      
+      train <- rbind(train, image[index_train,])
+      val <- rbind(val, image[index_val,])
+      test <- rbind(test,image[index_test,])
+    }
+  }
+  return(list(train, val, test))
+}
+
+img1_train <- split_image(image1)[[1]]
+img1_val <- split_image(image1)[[2]]
+img1_test <- split_image(image1)[[3]]
+
+img2_train <- split_image(image2)[[1]]
+img2_val <- split_image(image2)[[2]]
+img2_test <- split_image(image2)[[3]]
+
+img3_train <- split_image(image3)[[1]]
+img3_val <- split_image(image3)[[2]]
+img3_test <- split_image(image3)[[3]]
+
+image_train <- rbind(img1_train, img2_train, img3_train)
+image_val <- rbind(img1_val, img2_val, img3_val)
+image_test <- rbind(img1_test, img2_test, img3_test)
+#############################################################################
+#Another way is to shuffle these grids into train,test and validation without internal rearranging
+grid_split <- function(image, type){
+  #mm <- matrix(1:100, nrow = 10)
+  # x_train <- sample(1:100, 50, replace = F)
+  # #y_train <- sample(1:100, 70, replace = F)
+  # 
+  # ind <- 1:100
+  # x_val <- sample(ind[!ind %in% x_train], 15, replace = F)
+  # #y_val <- sample(ind[!ind %in% y_train], 15, replace = F)
+  # 
+  # x_test <- sample(ind[!ind %in% x_train & !ind %in% x_val], 15, replace = F)
+  # #y_test <- sample(ind[!ind %in% y_train & !ind %in% y_val], 15, replace = F)
+  # 
+  image_temp <- image %>% group_by(x_cat, y_cat) %>% summarise(pos = 0)
+  image_temp <- as.data.frame(image_temp[,1:2])
+  
+  cat_train <- sample_n(image_temp, 70, replace = F)
+  
+  image_temp <- anti_join(image_temp, cat_train)
+  cat_val <- sample_n(image_temp, 15, replace = F)
+  cat_test <- anti_join(image_temp, cat_val)
+  data <- list("train" = inner_join(image, cat_train), "val" = inner_join(image, cat_val), "test" = inner_join(image, cat_test))
+  
+  return(data)
+}
+
+img1_dat <- grid_split(image1)
+img1_train2 <- img1_dat[["train"]]
+img1_val2 <- img1_dat[["val"]]
+img1_test2 <- img1_dat[["test"]]
+
+img2_dat <- grid_split(image2)
+img2_train2 <- img2_dat[["train"]]
+img2_val2 <- img2_dat[["val"]]
+img2_test2 <- img2_dat[["test"]]
+
+img3_dat <- grid_split(image3)
+img3_train2 <- img3_dat[["train"]]
+img3_val2 <- img3_dat[["val"]]
+img3_test2 <- img3_dat[["test"]]
+
+image_train2 <- rbind(img1_train2, img2_train2, img3_train2)
+image_val2 <- rbind(img1_val2, img2_val2, img3_val2)
+image_test2 <- rbind(img1_test2, img2_test2, img3_test2)
+#######################################################
+```
+
+```{r}
+ggplot() + geom_point(data = filter(img2_test2, expert_label == -1), aes(x = x, y = -y), colour = "brown", size = 0.000001) + geom_point(data = filter(img2_test2, expert_label == 1), aes(x = x, y = -y), colour = "aquamarine2", size = 0.000001) +  geom_point(data = filter(img2_test2, expert_label == 0), aes(x = x, y = -y), colour = "black", size = 0.000001)+labs(title="img2_test2", x="x", y="y")+theme(aspect.ratio=1)
+ggplot() + geom_point(data = filter(img2_train2, expert_label == -1), aes(x = x, y = -y), colour = "brown", size = 0.000001) + geom_point(data = filter(img2_train2, expert_label == 1), aes(x = x, y = -y), colour = "aquamarine2", size = 0.000001) +  geom_point(data = filter(img2_train2, expert_label == 0), aes(x = x, y = -y), colour = "black", size = 0.000001)+labs(title="img2_train2", x="x", y="y")+theme(aspect.ratio=1)
+ggplot() + geom_point(data = filter(img2_val2, expert_label == -1), aes(x = x, y = -y), colour = "brown", size = 0.000001) + geom_point(data = filter(img2_val2, expert_label == 1), aes(x = x, y = -y), colour = "aquamarine2", size = 0.000001) +  geom_point(data = filter(img2_val2, expert_label == 0), aes(x = x, y = -y), colour = "black", size = 0.000001)+labs(title="img2_val2", x="x", y="y")+theme(aspect.ratio=1)
+```
+```{r}
+
+ggplot() + geom_point(data = filter(img2_test, expert_label == -1), aes(x = x, y = -y), colour = "brown", size = 0.000001) + geom_point(data = filter(img2_test, expert_label == 1), aes(x = x, y = -y), colour = "aquamarine2", size = 0.000001) +  geom_point(data = filter(img2_test, expert_label == 0), aes(x = x, y = -y), colour = "black", size = 0.000001)+labs(title="img2_test", x="x", y="y")+theme(aspect.ratio=1)
+ggplot() + geom_point(data = filter(img2_train, expert_label == -1), aes(x = x, y = -y), colour = "brown", size = 0.000001) + geom_point(data = filter(img2_train, expert_label == 1), aes(x = x, y = -y), colour = "aquamarine2", size = 0.000001) +  geom_point(data = filter(img2_train, expert_label == 0), aes(x = x, y = -y), colour = "black", size = 0.000001)+labs(title="img2_train", x="x", y="y")+theme(aspect.ratio=1)
+ggplot() + geom_point(data = filter(img2_val, expert_label == -1), aes(x = x, y = -y), colour = "brown", size = 0.000001) + geom_point(data = filter(img2_val, expert_label == 1), aes(x = x, y = -y), colour = "aquamarine2", size = 0.000001) +  geom_point(data = filter(img2_val, expert_label == 0), aes(x = x, y = -y), colour = "black", size = 0.000001)+labs(title="img2_val", x="x", y="y")+theme(aspect.ratio=1)
+```
+1. Grid image - randomise subsets within each grid - area is small so we retain connections
+2. Split into grid, assign 1/3 of the grids to valid, 1/3 to train etc. ...
+
+
+Spllit the data so the three folds act "independently" to each other
+Trivial way is to split into the 3 images. 
+Another way is to take points sufficiently far away from each other - less interference. 
+- lattice strucutre - take points not adjacent
+
+##b)
+Accuracy of trivial Classifier
+```{r}
+library(caret)
+#predicted values are -1, compare in validation and test sets. We will use the sets created by mehtod 2
+val_acc2 <- mean(-1 == image_val2)
+val_acc2
+
+test_acc2 <- mean(-1 ==image_test2)
+test_acc2
+
+#for the other method as well (robustness)
+val_acc <- mean(-1 == image_val)
+val_acc
+
+test_acc <- mean(-1 ==image_test)
+test_acc
+
+#Also look at other loss functions, make a table, talk about false positive/negatives, importance in given context which one is more important to detect
+#Confusion matrix so we can see what kind of errors our classifier is making
+confusionMatrix(image_test2, image_val2, positive = NULL,
+  dnn = c("Prediction", "Reference"), prevalence = NULL,
+  mode = "sens_spec")
+```
+
+##c)
+The methodology is as follows 
+- histogram with class seperation to find any features which immediately appear to seperate data
+- look at correlation matrix, heatmaps 
+- remove redundant features (highly correlated features)
+- Rank Features by importance
+- Run automatic feature selection for robustness
+```{r fig.width=12, fig.height=12}
+
+
+#visual - histograms of features based on class categories
+feature_hist <- function(image, feature, wid){
+  histo <- ggplot(image) + geom_histogram(aes(x = feature, fill = factor(expert_label), col = factor(expert_label)), stat = "bin", binwidth = wid, alpha = 0.5) + xlab(deparse(substitute(feature))) +     ylab("Count")
+  return(histo)
+}
+
+Rmisc::multiplot(feature_hist(image_train2, image_train2$NDAI, 0.1), feature_hist(image_train2, image_train2$SD, 0.1), feature_hist(image_train2, image_train2$CORR, 0.01), feature_hist(image_train2, image_train2$DF, 0.1), feature_hist(image_train2, image_train2$CF, 0.1), feature_hist(image_train2, image_train2$BF, 0.1), feature_hist(image_train2, image_train2$AF, 0.1), feature_hist(image_train2, image_train2$AN, 0.1), cols = 3 )
+
+```
+From the histograms alone, difficult to see if class seperation will take place - perhaps NDAI. 
+
+```{r}
+#correlation between variables
+library("corrplot")
+
+corrplot(cor(image_train2[,3:11]), method = "number", diag = T, order = "hclust")
+heatmap(cor(image_train2[,3:11]))
+```
+Correlation plots/heatmaps are enough if we are using a simple linear classifier. Then plots are giving a direct visualisation of how model will use features
+
+
+Remove Redundant Features
+
+```{r}
+library("caret")
+cor_mat <- cor(image_train2[,4:11])
+print(cor_mat)
+high_corr <- findCorrelation(cor_mat, cutoff = 0.75)
+```
+Telling us to remove columns 7(AF), 8(AN), 6(BF), 5(CF) Which leaves us with NDAI, SD, CORR
+
+To double check, we run single feature classification
+
+```{r}
+
+###train simple one feautre classification on each feature, to see which feature is best at predicting expert labels
+accuracy <- c()
+temp_train <- filter(image_train2, expert_label==-1 | expert_label ==1)
+temp_test <- filter(image_test2, expert_label==-1 | expert_label ==1)
+for(i in 4:11){
+  feat <- data.frame(temp_train[,i])
+  feat_test <- data.frame(temp_test[,i]) 
+  colnames(feat) <- paste0(i)
+  colnames(feat_test) <- paste0(i)
+  model <- train(x = feat, y = as.factor(temp_train[,3]), method = "glm", family = "binomial")
+  predict <- as.data.frame(predict.train(model, newdata = feat_test))
+  accur <- mean(predict == temp_test[,3])
+  accuracy <- c(accuracy, accur)
+}
+names(accuracy) <- c("NDAI", "SD", "CORR","DF", "CF", "BF", "AF", "AN")
+
+accuracy_df <- data.frame("Accuracy" = accuracy, "Feature" = c("NDAI", "SD", "CORR","DF", "CF", "BF", "AF", "AN"))
+ggplot(data = data.frame(accuracy_df), aes(x = Feature, y = Accuracy, fill = Feature)) + geom_bar(stat = "identity")
+#3 strongest features
+tail(sort(accuracy), 3)
+```
+As we see, this aligns with our correlation analysis. Not only are these features the least correlated, but also, if trivial classification is run (single feature prediction), NDAI, SD and CORR are the most accurate at predicting cloud class.
+
+ Features: CORR, SD,NDAI - most strongly correlated with expert label
+ 
+##d)
+```{r}
+
+#generic classifiers: LDA, QDA, logistic regression, SVM
+#features is a character vector, so is train_label
+CVgeneric <- function(classif, features, train_label, k, loss_func){
+  loss <- c()
+  #eval(parse)
+  dat <- cbind(train_label,  features)
+  dat_temp <- dat %>% group_by(x_cat, y_cat) %>% summarise(pos = 0)
+  dat_temp <- as.data.frame(dat_temp[,1:2])
+  names <- colnames(features)
+  k_folds <- createFolds(1:nrow(dat_temp), k)
+  
+  for (i in 1:k){
+    cat_test <- dat_temp[k_folds[[i]],]
+    cat_train <- dat_temp[-k_folds[[i]],]
+    test <- inner_join(dat, cat_test)
+    train <- inner_join(dat, cat_train)
+    
+    feat_i <- train[,2:(ncol(train)-2)]
+    train_i <- train[,1]
+    
+    if (classif == "logistic"){
+      model <- train(feat_i, as.factor(train_i), method = "glm", family = "binomial")
+      class_predict <- as.data.frame(predict.train(model, newdata = test[,2:(ncol(test)-2)]))
+      class_true <- as.data.frame(test$train_label)
+    }
+    else if (classif == "adaboost"){
+      model <- adaboost(y = train_i, X = as.matrix(feat_i), tree_depth = 1, n_rounds = 100) 
+      class_predict <- as.data.frame(predict.adaboost(model, X = as.matrix(test[,2:(ncol(test)-2)]), type = "response"))
+      class_true <- as.data.frame(test$train_label)
+    }
+    else{
+      model <- train(feat_i, as.factor(train_i), method = classif) 
+      class_predict <- as.data.frame(predict.train(model, newdata = test[,2:(ncol(test)-2)]))
+      class_true <- as.data.frame(test$train_label)
+    }
+    
+    
+    ##loss
+    if(loss_func == "accuracy"){
+      loss <- c(loss, mean(class_predict == class_true))
+    }
+    #else if(loss_func == "log"){
+      
+    #}
+    
+  }
+    
+    
+  CV_loss <- mean(loss)
+  
+  return(list("fold_loss" = loss, "average_loss" = CV_loss))
+  
+  
+}
+
+
+
+```
+
+##3
+Report the accuracies across folds (and not just the average across folds) and the test accuracy. CV-results for both the ways of creating folds (as answered in part 2(a)) should be reported. Provide a brief commentary on the results. Make sure you honestly mention all the classi???cation methods you have tried.
+
+```{r}
+#splitting method 1
+#preprocessing - getting rid of 0s  
+image_CV1 <- rbind(image_train, image_val)
+image_CV1 <- image_CV1 %>% filter(expert_label==-1 | expert_label ==1)
+image_CV1test <- image_test %>% filter(expert_label==-1 | expert_label ==1)
+
+set.seed("12345")
+#logistic
+log1 <- CVgeneric(classif = "logistic", features = image_CV1[,c(4,5,6,12,13)], train_label = image_CV1[,3], k = 3, loss_func = "accuracy")
+#test accuracy
+log1_model <- train(x = image_CV1[,4:6], y = as.factor(image_CV1[,3]), method = "glm", family = "binomial")
+log1_predict <- as.data.frame(predict.train(log1_model, newdata = image_CV1test[,4:6])) 
+log1_accur <- mean(log1_predict == image_CV1test[,3])
+
+
+#lda
+lda1 <- CVgeneric(classif = "lda", features = image_CV1[,c(4,5,6,12,13)], train_label = image_CV1[,3], k = 10, loss_func = "accuracy")
+##test accuracy
+lda1_model <- train(x = image_CV1[,4:6], y = as.factor(image_CV1[,3]), method = "lda")
+lda1_predict <- as.data.frame(predict.train(lda1_model, newdata = image_CV1test[,4:6])) 
+lda1_accur <- mean(lda1_predict == image_CV1test[,3])
+
+#qda
+qda1 <- CVgeneric(classif = "qda", features = image_CV1[,c(4,5,6,12,13)], train_label = image_CV1[,3], k = 10, loss_func = "accuracy")
+##test accuracy
+qda1_model <- train(x = image_CV1[,4:6], y = as.factor(image_CV1[,3]), method = "qda")
+qda1_predict <- as.data.frame(predict.train(qda1_model, newdata = image_CV1test[,4:6])) 
+qda1_accur <- mean(qda1_predict == image_CV1test[,3])
+
+
+#adaboost
+ada1 <- CVgeneric(classif = "adaboost", features = image_CV1[,c(4,5,6,12,13)], train_label = image_CV1[,3], k = 10, loss_func = "accuracy")
+##test accuracy
+ada1_model <- adaboost(y = image_CV1[,3], X = as.matrix(image_CV1[,4:6]), tree_depth = 1, n_rounds = 100)
+ada1_predict <- as.data.frame(predict.adaboost(ada1_model, X = as.matrix(image_CV1test[,4:6]), type = "response"))
+ada1_accur <- mean(ada1_predict == image_CV1test[,3])
+
+method1_table <- matrix(c(log1[[2]], lda1[[2]], qda1[[2]], probit1[[2]], svm1[[2]], log1_accur, lda1_accur, qda1_accur, probit1_accur, svm1_accur), ncol = 5)
+colnames(method1_table) <- c("Logistic", "LDA", "QDA", "Probit", "SVM")
+rownames(method1_table) <- c("Cross-Validation Error", "Test Error")
+method1_table <- as.table(method1_table)
+method1_table
+
+crossfold_error1 <- matrix(c(log1[[1]], lda1[[1]], qda1[[1]], probit1[[1]], svm1[[1]]), ncol = 10)
+colnames(crossfold_error1) <- c("Fold 1", "Fold 2", "Fold 3", "Fold 4", "Fold 5", "Fold 6", "Fold 7", "Fold 8", "Fold 9", "Fold 10")
+rownames(crossfold_error1) <- c("Logistic", "LDA", "QDA", "Probit", "SVM")
+
+#________________________
+#splitting method 2
+#preprocessing
+image_CV2 <- rbind(image_train2, image_val2)
+image_CV2 <- image_CV2 %>% filter(expert_label==-1 | expert_label ==1)
+image_CV2test <- image_test2 %>% filter(expert_label==-1 | expert_label ==1)
+
+#logistic
+log2 <- CVgeneric(classif = "logistic", features = image_CV2[,c(4,5,6,12,13)], train_label = image_CV2[,3], k = 3, loss_func = "accuracy")
+##test accuracy
+log2_model <- train(x = image_CV2[,4:6], y = as.factor(image_CV2[,3]), method = "glm", family = "binomial")
+log2_predict <- as.data.frame(predict.train(log2_model, newdata = image_CV2test[,4:6])) 
+log2_accur <- mean(log2_predict == image_CV2test[,3])
+
+#lda
+lda2 <- CVgeneric(classif = "lda", features = image_CV2[,c(4,5,6,12,13)], train_label = image_CV2[,3], k = 10, loss_func = "accuracy")
+##test accuracy
+lda2_model <- train(x = image_CV2[,4:6], y = as.factor(image_CV2[,3]), method = "lda")
+lda2_predict <- as.data.frame(predict.train(lda2_model, newdata = image_CV2test[,4:6])) 
+lda2_accur <- mean(lda2_predict == image_CV2test[,3])
+
+#qda
+qda2 <- CVgeneric(classif = "qda", features = image_CV2[,c(4,5,6,12,13)], train_label = image_CV2[,3], k = 10, loss_func = "accuracy")
+##test accuracy
+qda2_model <- train(x = image_CV2[,4:6], y = as.factor(image_CV2[,3]), method = "qda")
+qda2_predict <- as.data.frame(predict.train(qda2_model, newdata = image_CV2test[,4:6])) 
+qda2_accur <- mean(qda2_predict == image_CV2test[,3])
+
+#probit
+probit2 <- CVgeneric(classif = "polr", features = image_CV2[,c(4,5,6,12,13)], train_label = image_CV2[,3], k = 10, loss_func = "accuracy")
+##test accuracy
+probit2_model <- train(x = image_CV2[,4:6], y = as.factor(image_CV2[,3]), method = "polr")
+probit2_predict <- as.data.frame(predict.train(probit2_model, newdata = image_CV2test[,4:6]))
+probit2_accur <- mean(probit2_predict == image_CV2test[,3])
+
+#svm
+svm2 <- CVgeneric(classif = "svmLinear", features = image_CV2[,c(4,5,6,12,13)], train_label = image_CV2[,3], k = 3, loss_func = "accuracy")
+##test accuracy
+image_CV2[,3] <- as.factor(image_CV2[,3])
+levels(image_CV2[,3]) <- c("nocloud", "cloud")
+svm2_model <- train(x = image_CV2[,4:6], y = image_CV2[,3], method = "svmLinear", trControl = trainControl(classProbs = TRUE))
+svm2_predict <- as.data.frame(predict.train(svm2_model, newdata = image_CV2test[,4:6])) 
+svm2_accur <- mean(svm2_predict == image_CV2test[,3])
+
+#adaboost
+ada2 <- CVgeneric(classif = "adaboost", features = image_CV2[,c(4,5,6,12,13)], train_label = image_CV2[,3], k = 10, loss_func = "accuracy")
+##test accuracy
+ada2_model <- adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 1, n_rounds = 100)
+ada2_predict <- as.data.frame(predict.adaboost(ada2_model, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur <- mean(ada2_predict == image_CV2test[,3])
+
+
+method2_table <- matrix(c(log2[[2]], lda2[[2]], qda2[[2]], probit2[[2]], svm2[[2]], log2_accur, lda2_accur, qda2_accur, probit2_accur, svm2_accur), ncol = 5)
+colnames(method2_table) <- c("Logistic", "LDA", "QDA", "Probit", "SVM")
+rownames(method2_table) <- c("Cross-Validation Error", "Test Error")
+method2_table <- as.table(method2_table)
+method2_table
+
+crossfold_error2 <- matrix(c(log2[[1]], lda2[[1]], qda2[[1]], probit2[[1]], svm2[[1]]), ncol = 10)
+colnames(crossfold_error2) <- c("Fold 1", "Fold 2", "Fold 3", "Fold 4", "Fold 5", "Fold 6", "Fold 7", "Fold 8", "Fold 9", "Fold 10")
+rownames(crossfold_error2) <- c("Logistic", "LDA", "QDA", "Probit", "SVM")
+```
+
+##3b
+```{r}
+
+
+library(pROC)
+
+plotROC <- function(model, title, test, col){
+  controls <- model[[1]]
+  cases <- model[[2]]
+  rocobj <- roc(controls = controls, cases = cases, auc = TRUE)
+  coord <- coords(rocobj, x="best", input="threshold", best.method="youden")
+  youden <- round(coord[1,2],3)
+  title <- paste0(title, " (AUC = ", round(rocobj$auc, 3), " )")
+  ggroc(rocobj, colour = col) + geom_point(aes(x = coord[[2]], y = coord[[3]])) + ggtitle(title) + geom_text(aes(x = coord[[2]], y = coord[[3]] + 0.03, label = paste0(youden))) 
+  
+}
+#data split 2 - main method
+Rmisc::multiplot(plotROC(predict.train(qda2_model, newdata = image_CV2test[,4:6], type = "prob"), "QDA", col = "blue"), plotROC(predict.train(lda2_model, newdata = image_CV2test[,4:6], type = "prob"), "LDA", col = "red"), plotROC(predict.train(log2_model, newdata = image_CV2test[,4:6], type = "prob"), "Logistic", col = "green"), cols = 3)
+
+
+
+#data split 1 - other method
+Rmisc::multiplot(plotROC(predict.train(qda1_model, newdata = image_CV1test[,4:6], type = "prob"), "QDA"), plotROC(predict.train(lda1_model, newdata = image_CV1test[,4:6], type = "prob"), "LDA"), plotROC(predict.train(log1_model, newdata = image_CV1test[,4:6], type = "prob"), "Logistic"), cols = 3)
+
+
+library(e1071)
+
+#method 2
+svm2_model.0.25 <- svm(x = image_CV2[,4:6], y = as.factor(image_CV2[,3]), kernel = "linear", cost = 0.25, decision.values =T, probability = TRUE)
+svm2_model.1 <- svm(x = image_CV2[,4:6], y = image_CV2[,3], kernel = "linear", cost = 1, decision.values =T, probability = TRUE)
+svm2_model.16 <- svm(x = image_CV2[,4:6], y = image_CV2[,3], kernel = "linear", cost = 16, decision.values =T, probability = TRUE)
+
+svm1_model.0.25 <- svm(x = image_CV1[,4:6], y = image_CV1[,3], kernel = "linear", cost = 0.25, decision.values =T, probability = TRUE)
+svm1_model.1 <- svm(x = image_CV1[,4:6], y = image_CV1[,3], kernel = "linear", cost = 1, decision.values =T, probability = TRUE)
+svm1_model.16 <- svm(x = image_CV1[,4:6], y = image_CV1[,3], kernel = "linear", cost = 16, decision.values =T, probability = TRUE)
+
+#adaboost with varying tree size
+ada2_model.50t <-  adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 1, n_rounds = 50)
+ada2_model.100t <-  adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 1, n_rounds = 100)
+ada2_model.500t <-  adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 1, n_rounds = 500)
+ada2_model.1000t <-  adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 1, n_rounds = 1000)
+
+ada1_model.50t <- adaboost(y = image_CV1[,3], X = as.matrix(image_CV1[,4:6]), tree_depth = 1, n_rounds = 50)
+ada1_model.100t <- adaboost(y = image_CV1[,3], X = as.matrix(image_CV1[,4:6]), tree_depth = 1, n_rounds = 100)
+ada1_model.500t <- adaboost(y = image_CV1[,3], X = as.matrix(image_CV1[,4:6]), tree_depth = 1, n_rounds = 500)
+ada1_model.1000t <- adaboost(y = image_CV1[,3], X = as.matrix(image_CV1[,4:6]), tree_depth = 1, n_rounds = 1000)
+
+#ADA ROCs
+cases_ada2_50t <- predict.adaboost(ada2_model.50t, X = as.matrix(image_CV2test[,4:6]), type = "prob")
+control_ada2_50t <- 1-cases_ada2_50t
+roc_ada2_50t <- roc(cases = cases_ada2_50t, control = control_ada2_50t)
+coord_50t <- coords(roc_ada2_50t, x="best", input="threshold", best.method="youden")
+youden_50t <- round(coord[1,2],3)
+
+cases_ada2_100t <- predict.adaboost(ada2_model.100t, X = as.matrix(image_CV2test[,4:6]), type = "prob")
+control_ada2_100t <- 1-cases_ada2_100t
+roc_ada2_100t <- roc(cases = cases_ada2_100t, control = control_ada2_100t)
+coord_100t <- coords(roc_ada2_100t, x="best", input="threshold", best.method="youden")
+youden_100t <- round(coord_100t[1,2],3)
+
+cases_ada2_500t <- predict.adaboost(ada2_model.500t, X = as.matrix(image_CV2test[,4:6]), type = "prob")
+control_ada2_500t <- 1-cases_ada2_500t
+roc_ada2_500t <- roc(cases = cases_ada2_500t, control = control_ada2_500t)
+coord_500t <- coords(roc_ada2_500t, x="best", input="threshold", best.method="youden")
+youden_500t <- round(coord_500t[1,2],3)
+
+cases_ada2_1000t <- predict.adaboost(ada2_model.1000t, X = as.matrix(image_CV2test[,4:6]), type = "prob")
+control_ada2_1000t <- 1-cases_ada2_1000t
+roc_ada2_1000t <- roc(cases = cases_ada2_1000t, control = control_ada2_1000t)
+coord_1000t <- coords(roc_ada2_1000t, x="best", input="threshold", best.method="youden")
+youden_1000t <- round(coord_1000t[1,2],3)
+
+
+ggroc(list("50 Trees, AUC = 0.866" = roc_ada2_50t, "100 Trees, AUC = 0.8726" = roc_ada2_100t, "500 Trees, AUC = 0.8676" = roc_ada2_500t, "1000 Trees, AUC = 0.8666" = roc_ada2_1000t)) + geom_point(aes(x = coord_50t[[2]], y = coord_50t[[3]])) + geom_point(aes(x = coord_100t[[2]], y = coord_100t[[3]]))+ geom_point(aes(x = coord_500t[[2]], y = coord_500t[[3]]))+ geom_point(aes(x = coord_1000t[[2]], y = coord_1000t[[3]])) + geom_text(aes(x = coord_50t[[2]], y = coord_50t[[3]] + 0.03, label = paste0(youden_50t))) + ggtitle("ADA ROC") + geom_text(aes(x = coord_100t[[2]], y = coord_100t[[3]] + 0.03, label = paste0(youden_100t))) + geom_text(aes(x = coord_500t[[2]], y = coord_500t[[3]] + 0.03, label = paste0(youden_500t))) + geom_text(aes(x = coord_1000t[[2]], y = coord_1000t[[3]] + 0.03, label = paste0(youden_1000t))) 
+``` 
+```
+```
+the point where the Youden's index is maximum - just wikipedia what this is and expand a little bit
+
+##4
+###a)
+Our good classification model is Adaboost 
+Convergence of parameters
+
+```{r}
+#convergence of number of trees
+#predict on test set
+ada2_model.10t <-  adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 1, n_rounds = 10)
+ada2_predict.10t <- as.data.frame(predict.adaboost(ada2_model.10t, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.10t <- mean(ada2_predict.10t != image_CV2test[,3])
+ada2_val.10t <- 1-(ada2_model.10t$confusion_matrix[1,1] + ada2_model.10t$confusion_matrix[2,2])/(ada2_model.10t$confusion_matrix[1,1] + ada2_model.10t$confusion_matrix[2,2] + ada2_model.10t$confusion_matrix[2,1] + ada2_model.10t$confusion_matrix[1,2])
+
+
+ada2_predict.50t <- as.data.frame(predict.adaboost(ada2_model.50t, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.50t <- mean(ada2_predict.50t != image_CV2test[,3])
+ada2_val.50t <- 1-(ada2_model.50t$confusion_matrix[1,1] + ada2_model.50t$confusion_matrix[2,2])/(ada2_model.50t$confusion_matrix[1,1] + ada2_model.50t$confusion_matrix[2,2] + ada2_model.50t$confusion_matrix[2,1] + ada2_model.50t$confusion_matrix[1,2])
+
+ada2_predict.100t <- as.data.frame(predict.adaboost(ada2_model.100t, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.100t <- mean(ada2_predict.100t != image_CV2test[,3])
+ada2_val.100t <- 1-(ada2_model.100t$confusion_matrix[1,1] + ada2_model.100t$confusion_matrix[2,2])/(ada2_model.100t$confusion_matrix[1,1] + ada2_model.100t$confusion_matrix[2,2] + ada2_model.100t$confusion_matrix[2,1] + ada2_model.100t$confusion_matrix[1,2])
+
+ada2_predict.500t <- as.data.frame(predict.adaboost(ada2_model.500t, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.500t <- mean(ada2_predict.500t != image_CV2test[,3])
+ada2_val.500t <- 1-(ada2_model.500t$confusion_matrix[1,1] + ada2_model.500t$confusion_matrix[2,2])/(ada2_model.500t$confusion_matrix[1,1] + ada2_model.500t$confusion_matrix[2,2] + ada2_model.500t$confusion_matrix[2,1] + ada2_model.500t$confusion_matrix[1,2])
+
+ada2_predict.1000t <- as.data.frame(predict.adaboost(ada2_model.1000t, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.1000t <- mean(ada2_predict.1000t != image_CV2test[,3])
+ada2_val.1000t <- 1-(ada2_model.1000t$confusion_matrix[1,1] + ada2_model.1000t$confusion_matrix[2,2])/(ada2_model.1000t$confusion_matrix[1,1] + ada2_model.1000t$confusion_matrix[2,2] + ada2_model.1000t$confusion_matrix[2,1] + ada2_model.1000t$confusion_matrix[1,2])
+
+ada2_model.1500t <-  adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 1, n_rounds = 1500)
+ada2_predict.1500t <- as.data.frame(predict.adaboost(ada2_model.1500t, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.1500t <- mean(ada2_predict.1500t != image_CV2test[,3])
+ada2_val.1500t <- 1-(ada2_model.1500t$confusion_matrix[1,1] + ada2_model.1500t$confusion_matrix[2,2])/(ada2_model.1500t$confusion_matrix[1,1] + ada2_model.1500t$confusion_matrix[2,2] + ada2_model.1500t$confusion_matrix[2,1] + ada2_model.1500t$confusion_matrix[1,2])
+
+ada2_test_acc <- c(ada2_accur.10t, ada2_accur.50t, ada2_accur.100t, ada2_accur.500t, ada2_accur.1000t, ada2_accur.1500t)
+ada2_val_acc <- c(ada2_val.10t, ada2_val.50t, ada2_val.100t, ada2_val.500t, ada2_val.1000t, ada2_val.1500t)
+
+ggplot() + geom_line(aes(x = c(10, 50, 100, 500, 1000, 1500), y = ada2_test_acc), size = 1, col = "red") + geom_point(aes(x = c(10, 50, 100, 500, 1000, 1500), y = ada2_test_acc), size = 1, col = "red") + geom_line(aes(x = c(10, 50, 100, 500, 1000, 1500), y = ada2_val_acc), size = 1, col = "blue") + geom_point(aes(x = c(10, 50, 100, 500, 1000, 1500), y = ada2_val_acc)) + geom_vline(xintercept = 1000, col = "black", linetype = "longdash") + ggtitle("Adaboost: Number of Trees vs. Error") + xlab("NUmber of Trees") + ylab("Misclassification Error")
+
+#CHOose iterations = 1000, find tree depth
+ada2_model.1d <- ada2_model.1000t
+ada2_accur.1d <- ada2_accur.1000t
+ada2_val.1d <- ada2_val.1000t
+
+ada2_model.3d <- adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 3, n_rounds = 1000)
+ada2_predict.3d <-as.data.frame(predict.adaboost(ada2_model.3d, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.3d <- mean(ada2_predict.3d != image_CV2test[,3])
+ada2_val.3d <- 1-(ada2_model.3d$confusion_matrix[1,1] + ada2_model.3d$confusion_matrix[2,2])/(ada2_model.3d$confusion_matrix[1,1] + ada2_model.3d$confusion_matrix[2,2] + ada2_model.3d$confusion_matrix[2,1] + ada2_model.3d$confusion_matrix[1,2])
+
+
+ada2_model.5d <- adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 5, n_rounds = 1000)
+ada2_predict.5d <-as.data.frame(predict.adaboost(ada2_model.5d, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.5d <- mean(ada2_predict.5d != image_CV2test[,3])
+ada2_val.5d <- 1-(ada2_model.5d$confusion_matrix[1,1] + ada2_model.5d$confusion_matrix[2,2])/(ada2_model.5d$confusion_matrix[1,1] + ada2_model.5d$confusion_matrix[2,2] + ada2_model.5d$confusion_matrix[2,1] + ada2_model.5d$confusion_matrix[1,2])
+
+ada2_model.7d <- adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 7, n_rounds = 1000)
+ada2_predict.7d <-as.data.frame(predict.adaboost(ada2_model.7d, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.7d <- mean(ada2_predict.7d != image_CV2test[,3])
+ada2_val.7d <- 1-(ada2_model.7d$confusion_matrix[1,1] + ada2_model.7d$confusion_matrix[2,2])/(ada2_model.7d$confusion_matrix[1,1] + ada2_model.7d$confusion_matrix[2,2] + ada2_model.7d$confusion_matrix[2,1] + ada2_model.7d$confusion_matrix[1,2])
+
+ada2_model.9d <- adaboost(y = image_CV2[,3], X = as.matrix(image_CV2[,4:6]), tree_depth = 9, n_rounds = 1000)
+ada2_predict.9d <-as.data.frame(predict.adaboost(ada2_model.9d, X = as.matrix(image_CV2test[,4:6]), type = "response"))
+ada2_accur.9d <- mean(ada2_predict.9d != image_CV2test[,3])
+ada2_val.9d <- 1-(ada2_model.9d$confusion_matrix[1,1] + ada2_model.9d$confusion_matrix[2,2])/(ada2_model.9d$confusion_matrix[1,1] + ada2_model.9d$confusion_matrix[2,2] + ada2_model.9d$confusion_matrix[2,1] + ada2_model.9d$confusion_matrix[1,2])
+
+#runtime plots
+
+#decision boundary plot
+
+#feature importance plot
+
+```
+
+
+```{r}
+#decision boundary plot
+library("grid")
+library("gridExtra")
+
+nbp <- 25
+PredNDAI <- seq(min(image_CV2$NDAI), max(image_CV2$NDAI), length = nbp)
+PredCORR <- seq(min(image_CV2$CORR), max(image_CV2$CORR), length = nbp)
+PredSD <- seq(min(image_CV2$SD), max(image_CV2$SD), length = nbp)
+
+Grid <-  expand.grid(NDAI = PredNDAI, CORR = PredCORR, SD = PredSD)
+Grid_NDAI_CORR <- expand.grid(NDAI = PredNDAI, CORR = PredCORR)
+Grid_NDAI_SD <- expand.grid(NDAI = PredNDAI, SD = PredSD)
+Grid_CORR_SD <- expand.grid(NDAI = PredNDAI, CORR = PredCORR)
+
+PlotGrid <- function(pred,title, Grid, PredictorA, PredictorB) {
+  surf <- (ggplot(data = image_CV2, aes(x = eval(parse(text = PredictorA)), y = eval(parse(text = PredictorB)), 
+                                      color = as.factor(classes))) +
+          geom_tile(data = cbind(Grid, classes = pred), aes(fill = as.factor(classes))) +
+          scale_fill_manual(name = 'classes', values = c("cyan", "orange")) +
+          ggtitle("Decision region") + theme(legend.text = element_text(size = 10))+
+  scale_colour_manual(name = 'classes', values = c("cyan", "orange"))) +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0))
+  pts <- (ggplot(data = image_CV2, aes(x = eval(parse(text = PredictorA)), y = eval(parse(text = PredictorB)), color = expert_label))+
+          geom_contour(data = cbind(Grid, classes = pred), aes(z = as.numeric(classes)), 
+                       color = "brown") +
+          geom_point(size = 1, alpha = .5) + 
+          ggtitle("Points With Expert Labels") +
+          theme(legend.text = element_text(size = 10)) +
+          scale_colour_manual(name = 'classes', values = c("cyan", "orange"))) +
+    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0))
+  grid.arrange(surf, pts, top = textGrob(title, gp = gpar(fontsize = 20)), ncol = 2)
+}
+
+pred <- predict.adaboost(ada2_model.3d, X = Grid, type = "response")
+PlotGrid(pred, title = "Adaboost (Tree Depth: 3 Number of Trees: 1000) Decision Boundary", Grid, "NDAI", "CORR")
+
+
+
+```
+
+##4b
+Patterns in misclassification errors
+```{r}
+library(hexbin)
+#validate on images, identify which blocks errors mostly occur in - histogram of block - need a count per block 
+image1_filt <- image1 %>% filter(expert_label != 0)
+
+image1_predict_ada <- predict(ada2_model.3d, as.matrix(image1_filt[,4:6]), type = "response")
+
+image1_edit <- cbind(image1_filt, image1_predict_ada) %>% filter(expert_label != image1_predict_ada)
+
+rf <- colorRampPalette(c("blue", "red"))
+h <- hexbin(x = image1_edit[,2], y = -image1_edit[,1])
+plot(h,  colramp = rf, xlab = "x", ylab = "-y", main = "Distribution of Errors On Image 1")
+
+#image 2
+image2_filt <- image2 %>% filter(expert_label != 0)
+
+image2_predict_ada <- predict(ada2_model.3d, as.matrix(image2_filt[,4:6]), type = "response")
+
+image2_edit <- cbind(image2_filt, image2_predict_ada) %>% filter(expert_label != image2_predict_ada)
+
+rf <- colorRampPalette(c("blue", "red"))
+h <- hexbin(x = image2_edit[,2], y = -image2_edit[,1])
+plot(h,  colramp = rf, xlab = "x", ylab = "-y", main = "Distribution of Errors On Image 2")
+
+#image 3
+image3_filt <- image3 %>% filter(expert_label != 0)
+
+image3_predict_ada <- predict(ada2_model.3d, as.matrix(image3_filt[,4:6]), type = "response")
+
+image3_edit <- cbind(image3_filt, image3_predict_ada) %>% filter(expert_label != image3_predict_ada)
+
+rf <- colorRampPalette(c("blue", "red"))
+h <- hexbin(x = image3_edit[,2], y = -image3_edit[,1])
+plot(h,  colramp = rf, xlab = "x", ylab = "-y", main = "Distribution of Errors On Image 3")
+
+```
+
+##Problems in Ranges of Feature Values
+```{r}
+#histograms of features on entire dataset
+entire_test <- entire %>% filter(expert_label != 0)
+
+entire_predict <- predict(ada2_model.3d, as.matrix(entire_test[,4:6]), type = "response")
+
+entire_test <- cbind(entire_test, entire_predict)
+
+entire_test <- entire_test %>% filter(expert_label != entire_predict)
+
+
+#NDAI
+ggplot(data = entire_test, aes(x = NDAI, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across NDAI Values")
+
+#CORR
+ggplot(data = entire_test, aes(x = CORR, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across CORR Values")
+
+#SD
+ggplot(data = entire_test, aes(x = SD, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across SD Values")
+
+#DF
+ggplot(data = entire_test, aes(x = DF, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across DF Values")
+
+#CF
+ggplot(data = entire_test, aes(x = CF, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across CF Values")
+
+#BF
+ggplot(data = entire_test, aes(x = BF, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across BF Values")
+
+#AF
+ggplot(data = entire_test, aes(x = AF, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across AF Values")
+
+#AN
+ggplot(data = entire_test, aes(x = AN, colour = as.factor(expert_label))) + geom_histogram(fill = "white", alpha = 0.5, position = "identity") + labs(colour = "Expert Label") + ggtitle("Frequency Of Classification Errors Across AN Values")
+```
+
+Histograms mimic our original histograms in question 2. You could write a paragraph comparing the histogram pairs. Maybe you will find some discrepancies, or maybe the errors are more prominent in certain areas because there is more data in that measurement bin
+
+#4.c
+A better classifier- gradient boosting
+```{r}
+#Run PCA to select better features
+#run PCA on angular radiances
+pca <- prcomp(image_CV2[,7:11], scale = T)
+
+pr_var = ( pca$sdev )^2 
+ 
+# % of variance
+prop_varex = pr_var / sum( pr_var )
+ 
+# Plot
+plot( prop_varex, xlab = "Principal Component", 
+                   ylab = "Proportion of Variance Explained", type = "b" )
+
+sparse_image <- sample_n(image_CV2, 100)
+autoplot(pca, data = image_CV2, colour = "expert_label", fill = NA, loadings = TRUE, alpha = 0.2, size = 0.1, main = "BiPlot of First Two Principal Components")
+```
+
+```{r}
+# #lets run our Classifier on this transformed space
+pca_ada <- adaboost(pca$x[,1:3], y = image_CV2[,3], n_rounds = 1000, tree_depth = 3)
+pca_ada1 <- adaboost(pca$x[,1:3], y = image_CV2[,3], n_rounds = 1000, tree_depth = 1)
+# 
+#test error
+pca_test <- image_CV2test
+pca_test <- pca_test %>% mutate("PCA1" = -0.3697604*DF -0.4643131*CF-0.4793144*BF -0.4635854*AF -0.4505962*AN, "PCA2" = 0.7706207*DF + 0.2864405*CF -0.1268717*BF-0.3590198*AF-0.4232066*AN, "PCA3" = -0.4960458*DF +  0.6227787*CF +  0.3576190*BF -0.1448586*AF -0.4660578*AN )
+pca_ada_predict <- as.data.frame(predict.adaboost(pca_ada, X = as.matrix(pca_test[,14:16]), type = "response"))
+pca_ada_accur <- mean(pca_ada_predict != pca_test[,3])
+pca_ada_val <- 1-(pca_ada$confusion_matrix[1,1] + pca_ada$confusion_matrix[2,2])/(pca_ada$confusion_matrix[1,1] + pca_ada$confusion_matrix[2,2] + pca_ada$confusion_matrix[2,1] + pca_ada$confusion_matrix[1,2])
+# 
+#roc curve
+
+#boundary plots
+
+#gradient boosting
+gb_model <- train(image_CV2[,4:11], as.factor(image_CV2[,3]), 
+                  method='gbm',  
+                  metric = "Accuracy")
+
+gb_predict <- predict(gb_model, image_CV2test[,4:11])
+gb_accur <- mean(gb_predict != image_CV2test[,3])
+confusionMatrix(gb_model)
+
+#Feature Importance
+summary(gb_model)
+
+#Accuracy Plot
+plot(gb_model)
+
+#ROC Curve
+cases_ada2_1000t <- predict.adaboost(ada2_model.1000t, X = as.matrix(image_CV2test[,4:6]), type = "prob")
+control_ada2_1000t <- 1-cases_ada2_1000t
+roc_ada2_1000t <- roc(cases = cases_ada2_1000t, control = control_ada2_1000t)
+coord_1000t <- coords(roc_ada2_1000t, x="best", input="threshold", best.method="youden")
+youden_1000t <- round(coord_1000t[1,2],3)
+
+gb_prob <- predict(gb_model, image_CV2test[,4:11], type = "prob")
+controls <- gb_prob[[1]]
+cases <- gb_prob[[2]]
+roc_gb <- roc(cases = cases, control = controls)
+coord_gb <- coords(roc_gb, x = "best", best.method = "youden")
+youden_gb <- round(coord_gb[1,2],3)
+ggroc(roc_gb) + geom_point(aes(x = coord_gb[3,2], y = coord_gb[2,2]))  + geom_text(aes(x = coord_gb[3,2], y = coord_gb[2,2] + 0.1), label = youden_gb) + ggtitle("ROC For Gradient Boosting, AUC = 0.8741")
+
+
+```
+The high false positive rate (1-0.57821) is a concern, and may impact how well this performs on future data. However there is a high true positive rate
