@@ -1,13 +1,17 @@
-\#A Guide to Report 2
+A Guide to Report 2
+===================
 
 *The following document serves as an aid to the accompanying code and
 report on the cloud classification problem. *
 
-\#\#Data Collection and Exploration Images were loaded as dataframes.
-Initially, data was summarized by plotting points (geom\_point) at each
-x,y coordinate, color coding them based on expert\_label values. Slight
-resizing was implemented when extracting plots to improve readability
-and aesthetic. Ggplot was used to generate maps.
+Data Collection and Exploration
+-------------------------------
+
+Images were loaded as dataframes. Initially, data was summarized by
+plotting points (geom\_point) at each x,y coordinate, color coding them
+based on expert\_label values. Slight resizing was implemented when
+extracting plots to improve readability and aesthetic. Ggplot was used
+to generate maps.
 
 EDA was carried out, chiefly by plotting pairwise scatterplots using R’s
 convenient pairs() function. The relationship between expert labels and
@@ -16,9 +20,12 @@ using geom\_point() function in ggplot2. These plots provided early
 indications of which features would become the focus of the consequent
 analysis. Some features clearly showed greater separation of the labels.
 
-\#\#Preparation Before the data was split, it was necessary to get rid
-of the ‘0’ or ‘unknown’ labels. They are of not useful when training
-models, although did serve a purpose in the EDA stage.  
+Preparation
+-----------
+
+Before the data was split, it was necessary to get rid of the ‘0’ or
+‘unknown’ labels. They are of not useful when training models, although
+did serve a purpose in the EDA stage.  
 **Main Splitting Method:** The main splitting method involved cutting up
 each image into equally sized grids. A proportion of these grids would
 be sent to the train, validation and test sets. \* ‘grid\_split’ : the
@@ -71,13 +78,15 @@ implemented in the function separately to improve speed. Inputs:
 classifier, features, labels, k, loss function Outputs: List(Overall
 loss, loss in each fold)
 
-\#\#Modelling *Methods Tried: SVM, Logistic, QDA, LDA, ADABoost (tree
-stumps)* Test error was reported by predicting on the test set created
-using our main data splitting method. Predict() function was used, and
-the mean() method descibed above used to get classification accuracy
-CVGeneric was used to report cross fold cv error, and average k-fold
-error *There is code for probit, although this didn’t make it into the
-final report*
+Modelling
+---------
+
+*Methods Tried: SVM, Logistic, QDA, LDA, ADABoost (tree stumps)* Test
+error was reported by predicting on the test set created using our main
+data splitting method. Predict() function was used, and the mean()
+method descibed above used to get classification accuracy CVGeneric was
+used to report cross fold cv error, and average k-fold error *There is
+code for probit, although this didn’t make it into the final report*
 
 **ROC Curves** Library pROC was used to generate ROC curves. Cutoff
 points were determined by the coords() function in pROC, which returns
@@ -86,14 +95,17 @@ index to determine cutoff. Side by side plots of basic models: logistic,
 qda and lda. ROC Plots of Adaboost with varying hyperparameter: number
 of trees (tree stumps were used) ROC Plot of SVM with cost = 0.25.
 
-\#\#Diagnostics Good classification model was ADABoost: chosen for its
-speed (compared to SVM) and accuracy In the first section we attempt to
-determine which hyperparameter values to use. First we determine number
-of trees, predicting on validation and test sets using a range of tree
-values. Vectors of Validation Loss and Test Loss are passed to ggplot,
-where we visually identify best parameter value based on minimizing test
-loss. After determining number of trees, we repeat same methodology for
-tree depth.
+Diagnostics
+-----------
+
+Good classification model was ADABoost: chosen for its speed (compared
+to SVM) and accuracy In the first section we attempt to determine which
+hyperparameter values to use. First we determine number of trees,
+predicting on validation and test sets using a range of tree values.
+Vectors of Validation Loss and Test Loss are passed to ggplot, where we
+visually identify best parameter value based on minimizing test loss.
+After determining number of trees, we repeat same methodology for tree
+depth.
 
 **Decision Boundary Plot:** Required libraries: grid, gridExtra Grid is
 created using Grid function for sequences of NDAI, CORR and SD (our main
