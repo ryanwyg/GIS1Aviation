@@ -1,6 +1,10 @@
 A Guide to the Project
 ======================
 
+The technical details on clouds and statstical support is based on Prof. Bin Yu's 2008 paper, found here: https://www.jstor.org/stable/pdf/27640081.pdf?casa_token=hRh3Cem5CokAAAAA:qqqY6NdBLtC_UKTKeOuKs_fRRqwrfODATjfnuEdZ4uZ8xSn5YcCGMu8MUVO1btgg7ZPIQ6e7kUsWSDSHBHwRlaTOQzCi7QDsZPbrmGUVVuKUoghudPYN
+
+The goal of this project is the exploration and modeling of cloud detection in the polar regions based on radiance recorded automatically by the MISR sensor abroad the NASA satellite Terra. We built classification models to distinguish the presence of cloud from the absence of clouds in the images using the available signals/features.
+
 *The following document serves as an aid to the accompanying code and
 report on the cloud classification problem.*
 
